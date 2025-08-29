@@ -1,35 +1,61 @@
-(use-trait sip-009-nft-trait .sip-009-nft-trait)
+;; Carbon Credit NFT contract without traits
 
-(define-non-fungible-token carbon-credit 
-  {id: uint, project: (string-utf8 50), location: (string-utf8 50), metric-ton: uint, retired: bool})
+(define-non-fungible-token carbon-credit uint)
 
-(define-map token-owners uint principal)  ;; Maps Token ID to Owner
-(define-map token-metadata uint {project: (string-utf8 50), location: (string-utf8 50), metric-ton: uint, retired: bool})
+;; Maps Token ID to Owner
+(define-map token-owners uint principal)
 
-(define-data-var next-token-id uint 1)
+;; Maps Token ID to metadata about the carbon credit
+(define-map token-metadata uint
+  {
+    project: (string-utf8 50),
+    location: (string-utf8 50),
+    metric-ton: uint,
+    retired: bool
+  }
+)
 
-;; Mint a new carbon credit NFT
-(define-public (mint-carbon-credit (project (string-utf8 50)) (location (string-utf8 50)) (metric-ton uint))
+(define-data-var next-token-id uint u1)
+
+;; Mint a new carbon credit NFT to `to` with metadata
+(define-public (mint (to principal) (project (string-utf8 50)) (location (string-utf8 50)) (metric-ton uint))
   (let ((token-id (var-get next-token-id)))
     (begin
-      (asserts! (map-insert token-owners token-id tx-sender) (err u100))
+      (asserts! (<= (len project) u50) (err u200))
+      (asserts! (<= (len location) u50) (err u201))
+      (asserts! (> metric-ton u0) (err u202)) ;; Example: ensure metric-ton > 0
+
+      (asserts! (map-insert token-owners token-id to) (err u100))
       (asserts! (map-insert token-metadata token-id {project: project, location: location, metric-ton: metric-ton, retired: false}) (err u101))
       (var-set next-token-id (+ token-id u1))
-      (ok token-id)))))
+      (ok token-id)
+    )
+  )
+)
 
-;; Transfer ownership of carbon credit
-(define-public (transfer-carbon-credit (token-id uint) (recipient principal))
+;; Transfer ownership of a carbon credit token
+(define-public (transfer (token-id uint) (recipient principal))
   (let ((owner (map-get? token-owners token-id)))
     (begin
       (asserts! (is-some owner) (err u102))
+      ;; Only owner can transfer
       (asserts! (is-eq (unwrap! owner (err u103)) tx-sender) (err u104))
       (asserts! (map-set token-owners token-id recipient) (err u105))
-      (ok token-id)))))
+      (ok token-id)
+    )
+  )
+)
 
-;; Retrieve token metadata
-(define-read-only (get-token-metadata (token-id uint))
-  (unwrap! (map-get? token-metadata token-id) (err u110)))
+;; Get owner of a token
+(define-read-only (get-owner (token-id uint))
+  (ok (map-get? token-owners token-id))
+)
 
-;; Retrieve token owner
-(define-read-only (get-token-owner (token-id uint))
-  (unwrap! (map-get? token-owners token-id) (err u111)))
+;; Get metadata of a token
+ (define-read-only (get-token-metadata (token-id uint))
+  (match (map-get? token-metadata token-id)
+    metadata (ok metadata)
+    (err u110)
+  )
+)
+
