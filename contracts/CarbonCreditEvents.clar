@@ -1,25 +1,42 @@
 ;; Event emissions for important actions
-(define-data-event Minted
-  (token-id uint)
-  (project (string-utf8 50))
-  (amount uint)
+
+(define-public (mint (recipient principal) (amount uint))
+  (begin
+    (print {event: "mint", to: recipient, amount: amount})
+    (ok true)
+  )
 )
 
-(define-data-event Retired
-  (token-id uint)
-  (by principal)
-  (purpose (string-utf8 100))
+(define-public (retire (token-id uint) (by principal) (purpose (string-utf8 100)))
+  (begin
+    (print {event: "retire", token-id: token-id, by: by, purpose: purpose})
+    (ok true)
+  )
 )
 
-(define-data-event Listed
-  (token-id uint)
-  (price uint)
-  (seller principal)
+(define-public (list-token (token-id uint) (price uint) (seller principal))
+  (begin
+    (print {
+      event: "list",
+      token-id: token-id,
+      price: price,
+      seller: seller
+    })
+    (ok true)
+  )
 )
 
-(define-data-event Purchased
-  (token-id uint)
-  (from principal)
-  (to principal)
-  (price uint)
+
+ (define-public (purchase (token-id uint) (from principal) (to principal) (price uint))
+  (begin
+    (print {
+      event: "purchase",
+      token-id: token-id,
+      from: from,
+      to: to,
+      price: price
+    })
+    (ok true)
+  )
 )
+
