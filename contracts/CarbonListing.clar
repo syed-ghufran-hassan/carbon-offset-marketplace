@@ -6,7 +6,7 @@
 (define-public (list-for-sale (token-id uint) (price uint))
    
   (let (
-    (owner-opt-opt (contract-call? .CarbonCredits get-owner token-id))
+    (owner-opt-opt (contract-call? .CarbonCredits get-owner token-id)))
   )
     (let ((owner-opt (unwrap! owner-opt-opt (err u203))))
       (let ((owner (unwrap! owner-opt (err u204))))
