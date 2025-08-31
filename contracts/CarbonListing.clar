@@ -58,4 +58,13 @@
       )
     )
   )
+) 
+
+;;Remove a token from the listings map.
+(define-public (delist-token (token-id uint))
+  (begin
+    (asserts! (is-some (map-get? listings token-id)) (err u300)) ;; Make sure token is listed
+    (map-delete listings token-id)
+    (ok true)
+  )
 )
