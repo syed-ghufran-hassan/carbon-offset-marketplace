@@ -59,3 +59,16 @@
   )
 )
 
+(define-public (update-metadata (token-id uint) (new-metadata {project: (string-utf8 50), location: (string-utf8 50), metric-ton: uint, retired: bool}))
+  (let ((owner (map-get? token-owners token-id)))
+    (begin
+      (asserts! (is-some owner) (err u106))
+      ;; Only the owner can update metadata
+      (asserts! (is-eq (unwrap! owner (err u107)) tx-sender) (err u108))
+      (asserts! (map-set token-metadata token-id new-metadata) (err u109))
+      (ok true)
+    )
+  )
+)
+
+
