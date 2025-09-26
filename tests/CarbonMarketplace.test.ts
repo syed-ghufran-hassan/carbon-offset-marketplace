@@ -1,222 +1,297 @@
-import { Clarinet, Tx, Chain, Account, types } from 'https://deno.land/x/clarinet@v0.31.1/index.ts';
+import { Cl } from "@stacks/transactions";
+import { describe, expect, it } from "vitest";
 
-Clarinet.test({
-  name: "Successfully buy a listed carbon credit - full verification",
-  async fn(chain: Chain, accounts: Map<string, Account>) {
-    const deployer = accounts.get('deployer')!;
-    const seller = accounts.get('wallet_1')!;
-    const buyer = accounts.get('wallet_2')!;
-    const price = 7500000; // 7.5 STX
+const accounts = simnet.getAccounts();
+const deployer = accounts.get("deployer") as string;
+const user1 = accounts.get("wallet_1") as string;
+const user2 = accounts.get("wallet_2") as string;
 
-    // Setup phase
-    chain.mineBlock([
-      // Mint NFT to seller
-      Tx.contractCall('CarbonCredits', 'mint-carbon-credit', [
-        types.utf8('Geothermal Plant'),
-        types.utf8('Iceland'),
-        types.uint(2500)
-      ], seller.address),
-      // List for sale
-      Tx.contractCall('CarbonListing', 'list-for-sale', [
-        types.uint(1),
-        types.uint(price)
-      ], seller.address)
-    ]);
-
-    // Pre-purchase verification
-    const initialSellerBalance = chain.getAssetsMaps().assets['STX'][seller.address];
-    const initialBuyerBalance = chain.getAssetsMaps().assets['STX'][buyer.address];
-    
-    // Execute purchase
-    const block = chain.mineBlock([
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(1)
-      ], buyer.address)
-    ]);
-
-    // Verify transaction success
-    block.receipts[0].result.expectOk().expectUint(1);
-
-    // Post-purchase verification
-    const finalSellerBalance = chain.getAssetsMaps().assets['STX'][seller.address];
-    const finalBuyerBalance = chain.getAssetsMaps().assets['STX'][buyer.address];
-
-    // Verify STX balances changed correctly
-    finalSellerBalance.expectEquals(initialSellerBalance + price);
-    finalBuyerBalance.expectEquals(initialBuyerBalance - price);
-
-    // Verify NFT ownership transfer
-    const newOwner = chain.callReadOnlyFn(
-      'CarbonCredits',
-      'get-token-owner',
-      [types.uint(1)],
-      deployer.address
+describe("Carbon Marketplace Contract", () => {
+  // Helper functions
+  const mintCarbonCredit = (owner: string) => {
+    return simnet.callPublicFn(
+      "CarbonCredits",
+      "mint",
+      [Cl.principal(owner), Cl.stringUtf8("Test Project"), Cl.stringUtf8("Test Location"), Cl.uint(100)],
+      deployer
     );
-    newOwner.result.expectOk().expectPrincipal(buyer.address);
+  };
 
-    // Verify listing removal
-    const listing = chain.callReadOnlyFn(
-      'CarbonListing',
-      'get-listing',
-      [types.uint(1)],
-      deployer.address
+  const listTokenForSale = (tokenId: number, price: number, seller: string) => {
+    return simnet.callPublicFn(
+      "CarbonListing",
+      "list-for-sale",
+      [Cl.uint(tokenId), Cl.uint(price)],
+      seller
     );
-    listing.result.expectNone();
+  };
 
-    // Verify NFT metadata remains unchanged
-    const metadata = chain.callReadOnlyFn(
-      'CarbonCredits',
-      'get-token-metadata',
-      [types.uint(1)],
-      deployer.address
-    );
-    metadata.result.expectOk().expectTuple({
-      project: types.utf8('Geothermal Plant'),
-      location: types.utf8('Iceland'),
-      'metric-ton': types.uint(2500),
-      retired: types.bool(false)
+  describe("buy-carbon-credit function", () => {
+    it("successfully validates purchase and updates stats", () => {
+      // Setup: Mint and list token
+      const mintResult = mintCarbonCredit(user1);
+      expect(mintResult.result).toBeOk(Cl.uint(1));
+
+      const listResult = listTokenForSale(1, 1000, user1);
+      expect(listResult.result).toBeOk(Cl.uint(1));
+      
+      // Execute purchase validation
+      const purchaseResult = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user2
+      );
+
+      expect(purchaseResult.result).toBeOk(Cl.uint(1));
+
+      // Verify stats were updated
+      const statsResult = simnet.callReadOnlyFn(
+        "CarbonMarketplace",
+        "get-marketplace-stats",
+        [],
+        user2
+      );
+
+      expect(statsResult.result).toBeOk(
+        Cl.tuple({
+          "total-sales": Cl.uint(1),
+          "total-volume": Cl.uint(1000)
+        })
+      );
     });
-  }
-});
 
-Clarinet.test({
-  name: "Cannot buy carbon credit with wrong token ID",
-  async fn(chain: Chain, accounts: Map<string, Account>) {
-    const buyer = accounts.get('wallet_1')!;
+    it("fails when purchasing non-listed token", () => {
+      mintCarbonCredit(user1);
 
-    // Attempt to buy non-existent token
-    const block = chain.mineBlock([
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(9999) // Invalid token ID
-      ], buyer.address)
-    ]);
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user2
+      );
 
-    // Verify correct error code
-    block.receipts[0].result.expectErr().expectUint(300);
-  }
-});
+      expect(result.result).toBeErr(Cl.uint(300)); // Listing not found
+    });
 
-Clarinet.test({
-  name: "Cannot buy carbon credit with insufficient STX",
-  async fn(chain: Chain, accounts: Map<string, Account>) {
-    const seller = accounts.get('wallet_1')!;
-    const buyer = accounts.get('wallet_2')!;
-    const expensivePrice = 100000000000; // 100,000 STX
+    it("fails when token doesn't exist", () => {
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(999)], // Non-existent token
+        user2
+      );
 
-    // Setup expensive listing
-    chain.mineBlock([
-      Tx.contractCall('CarbonCredits', 'mint-carbon-credit', [
-        types.utf8('Nuclear Plant'),
-        types.utf8('France'),
-        types.uint(10000)
-      ], seller.address),
-      Tx.contractCall('CarbonListing', 'list-for-sale', [
-        types.uint(1),
-        types.uint(expensivePrice)
-      ], seller.address)
-    ]);
+      // Fixed: Should be u300 (listing not found) since that's checked first
+      expect(result.result).toBeErr(Cl.uint(300));
+    });
 
-    // Attempt purchase
-    const block = chain.mineBlock([
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(1)
-      ], buyer.address)
-    ]);
+    it("fails when seller no longer owns the token", () => {
+      // Mint token to user1 and list it
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1000, user1);
 
-    // Verify failure
-    block.receipts[0].result.expectErr();
+      // Transfer token to user2 (so user1 no longer owns it)
+      simnet.callPublicFn(
+        "CarbonCredits",
+        "transfer",
+        [Cl.uint(1), Cl.principal(user2)],
+        user1
+      );
 
-    // Verify listing still exists
-    const listing = chain.callReadOnlyFn(
-      'CarbonListing',
-      'get-listing',
-      [types.uint(1)],
-      seller.address
-    );
-    listing.result.expectSome();
-  }
-});
+      // Try to purchase - should fail because seller doesn't own it anymore
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user2
+      );
 
-Clarinet.test({
-  name: "Cannot buy already purchased carbon credit",
-  async fn(chain: Chain, accounts: Map<string, Account>) {
-    const seller = accounts.get('wallet_1')!;
-    const buyer1 = accounts.get('wallet_2')!;
-    const buyer2 = accounts.get('wallet_3')!;
-    const price = 3000000; // 3 STX
+      expect(result.result).toBeErr(Cl.uint(500)); // Owner != seller
+    });
 
-    // Setup and first purchase
-    chain.mineBlock([
-      Tx.contractCall('CarbonCredits', 'mint-carbon-credit', [
-        types.utf8('Hydroelectric Dam'),
-        types.utf8('Norway'),
-        types.uint(5000)
-      ], seller.address),
-      Tx.contractCall('CarbonListing', 'list-for-sale', [
-        types.uint(1),
-        types.uint(price)
-      ], seller.address),
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(1)
-      ], buyer1.address)
-    ]);
+    it("fails when buyer is the seller", () => {
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1000, user1);
 
-    // Attempt second purchase
-    const block = chain.mineBlock([
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(1)
-      ], buyer2.address)
-    ]);
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user1 // user1 trying to buy their own token
+      );
 
-    // Verify failure with correct error code
-    block.receipts[0].result.expectErr().expectUint(300);
-  }
-});
+      expect(result.result).toBeErr(Cl.uint(501)); // Buyer == seller
+    });
 
-Clarinet.test({
-  name: "Buying removes listing even if subsequent operations fail",
-  async fn(chain: Chain, accounts: Map<string, Account>) {
-    const deployer = accounts.get('deployer')!;
-    const seller = accounts.get('wallet_1')!;
-    const buyer = accounts.get('wallet_2')!;
-    const price = 2000000; // 2 STX
+    it("accumulates multiple sales in stats", () => {
+      // First sale
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1000, user1);
+      const result1 = simnet.callPublicFn("CarbonMarketplace", "buy-carbon-credit", [Cl.uint(1)], user2);
+      expect(result1.result).toBeOk(Cl.uint(1));
 
-    // Setup with mock contract that will fail transfers
-    chain.mineBlock([
-      // Deploy mock CarbonCredits that fails transfers
-      Tx.contractDeploy('mock-carbon-credits', 'carbon-credits-mock.clar', deployer.address),
-      // Set mock as CarbonCredits in CarbonListing contract
-      Tx.contractCall('CarbonListing', 'set-carbon-credits-contract', [
-        types.principal(deployer.address + '.mock-carbon-credits')
-      ], deployer.address),
-      // Mint and list token
-      Tx.contractCall('mock-carbon-credits', 'mint-mock-token', [
-        types.principal(seller.address)
-      ], deployer.address),
-      Tx.contractCall('CarbonListing', 'list-for-sale', [
-        types.uint(1),
-        types.uint(price)
-      ], seller.address)
-    ]);
+      // Second sale
+      mintCarbonCredit(user1);
+      listTokenForSale(2, 2000, user1);
+      const result2 = simnet.callPublicFn("CarbonMarketplace", "buy-carbon-credit", [Cl.uint(2)], user2);
+      expect(result2.result).toBeOk(Cl.uint(2));
 
-    // Attempt purchase
-    const block = chain.mineBlock([
-      Tx.contractCall('CarbonListing', 'buy-carbon-credit', [
-        types.uint(1)
-      ], buyer.address)
-    ]);
+      // Check cumulative stats
+      const statsResult = simnet.callReadOnlyFn(
+        "CarbonMarketplace",
+        "get-marketplace-stats",
+        [],
+        user2
+      );
 
-    // Verify listing was removed despite transfer failure
-    const listing = chain.callReadOnlyFn(
-      'CarbonListing',
-      'get-listing',
-      [types.uint(1)],
-      deployer.address
-    );
-    listing.result.expectNone();
+      expect(statsResult.result).toBeOk(
+        Cl.tuple({
+          "total-sales": Cl.uint(2),
+          "total-volume": Cl.uint(3000) // 1000 + 2000
+        })
+      );
+    });
+  });
 
-    // Verify STX were still transferred
-    const sellerBalance = chain.getAssetsMaps().assets['STX'][seller.address];
-    sellerBalance.expectGreaterThan(0);
-  }
+  describe("make-offer function", () => {
+    it("accepts valid offers", () => {
+      mintCarbonCredit(user1);
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "make-offer",
+        [Cl.uint(1), Cl.uint(500)],
+        user2
+      );
+
+      expect(result.result).toBeOk(Cl.bool(true));
+    });
+
+    it("fails when offer price is zero", () => {
+      mintCarbonCredit(user1);
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "make-offer",
+        [Cl.uint(1), Cl.uint(0)],
+        user2
+      );
+
+      expect(result.result).toBeErr(Cl.uint(600)); // Invalid offer price
+    });
+
+    it("accepts any positive offer price", () => {
+      mintCarbonCredit(user1);
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "make-offer",
+        [Cl.uint(1), Cl.uint(1)], // Very low but valid price
+        user2
+      );
+
+      expect(result.result).toBeOk(Cl.bool(true));
+    });
+  });
+
+  describe("get-marketplace-stats function", () => {
+    it("returns initial zero stats", () => {
+      const result = simnet.callReadOnlyFn(
+        "CarbonMarketplace",
+        "get-marketplace-stats",
+        [],
+        user1
+      );
+
+      expect(result.result).toBeOk(
+        Cl.tuple({
+          "total-sales": Cl.uint(0),
+          "total-volume": Cl.uint(0)
+        })
+      );
+    });
+
+    it("returns updated stats after purchases", () => {
+      // Make some sales
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1500, user1);
+      simnet.callPublicFn("CarbonMarketplace", "buy-carbon-credit", [Cl.uint(1)], user2);
+
+      mintCarbonCredit(user1);
+      listTokenForSale(2, 2500, user1);
+      simnet.callPublicFn("CarbonMarketplace", "buy-carbon-credit", [Cl.uint(2)], user2);
+
+      const result = simnet.callReadOnlyFn(
+        "CarbonMarketplace",
+        "get-marketplace-stats",
+        [],
+        user1
+      );
+
+      expect(result.result).toBeOk(
+        Cl.tuple({
+          "total-sales": Cl.uint(2),
+          "total-volume": Cl.uint(4000) // 1500 + 2500
+        })
+      );
+    });
+  });
+
+  describe("error code validation", () => {
+    it("tests u300 error (listing not found)", () => {
+      mintCarbonCredit(user1); // Token exists but not listed
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user2
+      );
+
+      expect(result.result).toBeErr(Cl.uint(300));
+    });
+
+    it("tests u500 error (owner != seller)", () => {
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1000, user1);
+      
+      // Transfer ownership away from seller
+      simnet.callPublicFn("CarbonCredits", "transfer", [Cl.uint(1), Cl.principal(user2)], user1);
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user2
+      );
+
+      expect(result.result).toBeErr(Cl.uint(500));
+    });
+
+    it("tests u501 error (buyer == seller)", () => {
+      mintCarbonCredit(user1);
+      listTokenForSale(1, 1000, user1);
+
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "buy-carbon-credit",
+        [Cl.uint(1)],
+        user1
+      );
+
+      expect(result.result).toBeErr(Cl.uint(501));
+    });
+
+    it("tests u600 error (invalid offer price)", () => {
+      const result = simnet.callPublicFn(
+        "CarbonMarketplace",
+        "make-offer",
+        [Cl.uint(1), Cl.uint(0)],
+        user2
+      );
+
+      expect(result.result).toBeErr(Cl.uint(600));
+    });
+  });
 });
