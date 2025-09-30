@@ -7,3 +7,8 @@ This overview covers the high-level system architecture, core contracts, and car
 ## System Architecture
 
 The Carbon Offset Marketplace consists of five interconnected Clarity smart contracts that manage the complete lifecycle of carbon credits from minting through retirement.
+
+## Core Contract Architecture
+
+<img width="866" height="703" alt="image" src="https://github.com/user-attachments/assets/302b5083-2e7c-4476-924d-62334d6cb2f8" />
+
