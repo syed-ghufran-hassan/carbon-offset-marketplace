@@ -55,7 +55,8 @@ The system is built on the Stacks blockchain using Clarity smart contracts, prov
 - Metadata Integrity: Project details stored immutably in token-metadata map
 - Automatic ID Management: Sequential token IDs managed by next-token-id data variable
 - SIP-009 Compliance: Follows Stacks NFT standards for interoperability
-- The mint function validates input parameters and ensures data integrity:
+
+The mint function validates input parameters and ensures data integrity:
 
 - Project names limited to 50 UTF-8 characters
 - Location names limited to 50 UTF-8 characters
