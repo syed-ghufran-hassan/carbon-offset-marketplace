@@ -80,10 +80,6 @@ The CarbonRetirement contract maintains consistency by updating metadata and rem
 
 
 
-## Carbon Credit Lifecycle
-
-Carbon credits in the marketplace follow a defined lifecycle from creation to retirement, managed through the smart contract system.
-
 ## Carbon Credit Lifecycle States and Transitions
 
 The carbon credit system follows a four-phase lifecycle with distinct states and transitions managed across multiple smart contracts: `CarbonCredits.clar:32-53`
@@ -123,6 +119,43 @@ Initial State: Carbon credits begin as newly minted NFTs with retired: false `Ca
 - Terminal State: Credits permanently marked as consumed with retired: true, preventing double-counting `CarbonRetirement.clar:19-23`
 
 No transitions from Retired: This is a permanent, irreversible state
+
+## System Architecture
+
+It explains the high-level architecture of the Carbon Offset Marketplace, focusing on how the five core smart contracts work together to enable trading of carbon credits as NFTs on the Stacks blockchain. The architecture demonstrates clear separation of concerns across contract boundaries while maintaining data consistency and enabling comprehensive event tracking.
+
+The carbon offset marketplace consists of 5 interconnected smart contracts organized in a hierarchical architecture:
+
+### Primary Contracts (Core Functionality)
+
+CarbonListing.clar `CarbonListing.clar:1-12`
+
+- Functions: list-for-sale, get-listing, cancel-listing, update-listing
+- Manages marketplace inventory with listings map storing seller/price pairs
+
+CarbonCredits.clar  `CarbonCredits.clar:4-23`
+
+- Functions: mint, transfer, get-owner, get-token-metadata
+- Core NFT contract with token-owners and token-metadata maps
+
+CarbonCreditEvents.clar `CarbonCreditEvents.clar:6-14`
+
+- Functions: mint, retire, list-token, purchase
+- Event emission system for off-chain integration
+
+### Secondary Contracts (Orchestration)
+
+CarbonRetirement.clar `CarbonRetirement.clar:5-6`
+
+- Functions: retire-carbon-credit
+- Handles permanent credit consumption
+
+CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
+
+- Functions: buy-carbon-credit
+- Orchestrates purchase transactions with STX payments
+
+
 
 
 
