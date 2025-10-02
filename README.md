@@ -155,6 +155,17 @@ CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
 - Functions: buy-carbon-credit
 - Orchestrates purchase transactions with STX payments
 
+### Contract Dependencies
+
+`CarbonListing → CarbonCredits (ownership verification)  
+CarbonMarketplace → CarbonListing (listing lookup)  
+CarbonMarketplace → CarbonCredits (ownership transfer)  
+CarbonRetirement → CarbonCredits (metadata updates)  
+CarbonRetirement → CarbonListing (listing removal)  
+All contracts → CarbonCreditEvents (event emission)  
+CarbonMarketplace → STX Token System (payments)  
+CarbonCredits → Stacks Blockchain (NFT standards) `
+
 
 
 
