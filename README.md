@@ -200,6 +200,17 @@ Retirement: `Token Owner → CarbonRetirement.retire-carbon-credit() → Validat
 
 Event Emission: `Any State Change → CarbonCreditEvents.{mint|list-token|purchase|retire}() → print() event → Return success `
 
+### Key Interaction Patterns
+
+- Ownership Verification: CarbonListing calls CarbonCredits.get-owner to validate listing permissions 
+`contracts/CarbonListing.clar22`
+
+- Cross-Contract State Updates: CarbonMarketplace coordinates ownership transfer and payment processing
+
+- Event Broadcasting: All state-changing operations emit events through CarbonCreditEvents
+
+- Data Consistency: Listings are automatically removed when credits are transferred or retired
+
 
 
 
