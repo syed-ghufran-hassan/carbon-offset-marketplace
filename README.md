@@ -173,6 +173,11 @@ CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
 
 `CarbonCredits → Stacks Blockchain (NFT standards) `
 
+### External Integrations
+
+- STX Token System: Payment processing for marketplace transactions `CarbonMarketplace.clar:19`
+- Stacks Blockchain: NFT standards (SIP-009) compliance `CarbonCredits.clar:4`
+
 
 
 
