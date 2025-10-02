@@ -157,14 +157,21 @@ CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
 
 ### Contract Dependencies
 
-`CarbonListing → CarbonCredits (ownership verification)  
-CarbonMarketplace → CarbonListing (listing lookup)  
-CarbonMarketplace → CarbonCredits (ownership transfer)  
-CarbonRetirement → CarbonCredits (metadata updates)  
-CarbonRetirement → CarbonListing (listing removal)  
-All contracts → CarbonCreditEvents (event emission)  
-CarbonMarketplace → STX Token System (payments)  
-CarbonCredits → Stacks Blockchain (NFT standards) `
+`CarbonListing → CarbonCredits (ownership verification)`  
+
+`CarbonMarketplace → CarbonListing (listing lookup)`  
+
+`CarbonMarketplace → CarbonCredits (ownership transfer)`
+
+`CarbonRetirement → CarbonCredits (metadata updates)`
+
+`CarbonRetirement → CarbonListing (listing removal)`
+
+`All contracts → CarbonCreditEvents (event emission)`
+
+`CarbonMarketplace → STX Token System (payments)`
+
+`CarbonCredits → Stacks Blockchain (NFT standards) `
 
 
 
