@@ -62,6 +62,69 @@ The mint function validates input parameters and ensures data integrity:
 - Location names limited to 50 UTF-8 characters
 - Metric ton values must be greater than zero
 
+## Contract Interaction Patterns 
+
+The system uses five interconnected smart contracts with distinct interaction patterns:
+
+1. Cross-Contract Ownership Verification Pattern
+The CarbonListing contract validates token ownership by calling into CarbonCredits before allowing listings. `CarbonListing.clar:22` This pattern ensures only legitimate owners can list tokens for sale.
+
+2. Atomic Transaction Orchestration Pattern
+The CarbonMarketplace contract coordinates multi-step transactions by chaining operations across contracts. `CarbonMarketplace.clar:19-31` It handles STX payment, NFT transfer, and listing cleanup as a single atomic operation.
+
+3. Event Broadcasting Pattern
+All state-changing operations emit events through the CarbonCreditEvents contract for off-chain integration. `CarbonCreditEvents.clar:10` `CarbonCreditEvents.clar:38-43`
+
+4. State Consistency Pattern
+The CarbonRetirement contract maintains consistency by updating metadata and removing marketplace listings simultaneously. `CarbonRetirement.clar:19-28`
+
+
+
+## Carbon Credit Lifecycle
+
+Carbon credits in the marketplace follow a defined lifecycle from creation to retirement, managed through the smart contract system.
+
+## Carbon Credit Lifecycle States and Transitions
+
+The carbon credit system follows a four-phase lifecycle with distinct states and transitions managed across multiple smart contracts: `CarbonCredits.clar:32-53`
+
+### State 1: Minted
+
+Initial State: Carbon credits begin as newly minted NFTs with retired: false `CarbonCredits.clar:44`
+
+### Transitions from Minted:
+
+- To Listed: Owner calls list-for-sale(token-id, price) `CarbonListing.clar:19-39`
+
+- To Retired: Owner calls retire-carbon-credit(token-id) `CarbonRetirement.clar:5-34`
+
+### State 2: Listed
+
+- Active State: Credits available for purchase on marketplace with seller and price data stored `CarbonListing.clar:10-12`
+
+### Transitions from Listed:
+
+- To Minted: Seller calls cancel-listing(token-id) `CarbonListing.clar:53-67`
+
+- To Purchased: Buyer calls buy-carbon-credit(token-id) CarbonMarketplace.clar:5-38
+
+- To Retired: Owner calls retire-carbon-credit(token-id) (automatically removes listing) `CarbonRetirement.clar:28`
+
+### State 3: Purchased
+
+- Transient State: Atomic transaction involving STX payment transfer and NFT ownership change `CarbonMarketplace.clar:19-26`
+
+### Transitions from Purchased:
+
+- To Minted: Ownership transferred to buyer, listing removed CarbonMarketplace.clar:31
+
+### State 4: Retired
+
+- Terminal State: Credits permanently marked as consumed with retired: true, preventing double-counting `CarbonRetirement.clar:19-23`
+
+No transitions from Retired: This is a permanent, irreversible state
+
+
 
 
 
