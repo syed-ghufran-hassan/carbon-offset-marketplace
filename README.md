@@ -202,7 +202,7 @@ Event Emission: `Any State Change → CarbonCreditEvents.{mint|list-token|purcha
 
 ### Key Interaction Patterns
 
-- Ownership Verification: CarbonListing calls CarbonCredits.get-owner to validate listing permissions 
+- Ownership Verification: `CarbonListing` calls `CarbonCredits.get-owner` to validate listing permissions 
 `contracts/CarbonListing.clar22`
 
 - Cross-Contract State Updates: `CarbonMarketplace` coordinates ownership transfer and payment processing
