@@ -188,6 +188,17 @@ CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
 | **CarbonMarketplace** | Purchase transaction logic      | STX payment processing                            |
 | **CarbonRetirement** | Credit lifecycle termination    | Retirement status updates                         |
 
+### Flow
+
+Minting: `User → CarbonCredits.mint() → Store in token-owners & token-metadata maps → Increment next-token-id → Return token-id  `
+
+Listing: `Token Owner → CarbonListing.list-for-sale() → CarbonCredits.get-owner() → Validate ownership → Store in listings map → Return token-id `
+
+Purchase: `Buyer → CarbonMarketplace.buy-carbon-credit() → CarbonListing.get-listing() → stx-transfer? (payment) → CarbonCredits.transfer-carbon-credit() → Remove from listings → Return token-id `
+
+Retirement: `Token Owner → CarbonRetirement.retire-carbon-credit() → Validate ownership → Update metadata (retired: true) → Remove from listings → Return token-id `
+
+Event Emission: `Any State Change → CarbonCreditEvents.{mint|list-token|purchase|retire}() → print() event → Return success `
 
 
 
