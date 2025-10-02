@@ -178,6 +178,17 @@ CarbonMarketplace.clar `CarbonMarketplace.clar:5-6`
 - STX Token System: Payment processing for marketplace transactions `CarbonMarketplace.clar:19`
 - Stacks Blockchain: NFT standards (SIP-009) compliance `CarbonCredits.clar:4`
 
+## Contract Responsibilities
+
+| Contract            | Primary Purpose                  | Key Data Structures                                |
+|---------------------|----------------------------------|---------------------------------------------------|
+| **CarbonCredits**   | NFT management and ownership     | token-owners map, token-metadata map, carbon-credit NFT |
+| **CarbonListing**   | Marketplace inventory management | listings map with seller/price pairs              |
+| **CarbonCreditEvents** | Event emission and observability | Event printing for off-chain integration          |
+| **CarbonMarketplace** | Purchase transaction logic      | STX payment processing                            |
+| **CarbonRetirement** | Credit lifecycle termination    | Retirement status updates                         |
+
+
 
 
 
